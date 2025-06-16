@@ -1,0 +1,5 @@
+name: TryLibs
+version: '1.0-SNAPSHOT'
+main: com.trynocs.tryLibs.main
+api-version: '1.21'
+authors: [ "Trynocs" ]
