@@ -3,7 +3,6 @@ package com.trynocs.tryLibs.utils.database;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.trynocs.tryLibs.main;
-import com.trynocs.blockengine.utils.parents.Stadt;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.io.File;
@@ -24,10 +23,14 @@ public class DatabaseHandler {
     private String mysqlUsername;
     private String mysqlPassword;
     private final Gson gson = new Gson();
+    private UUID dummyUUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 
+    /**
+     * Erstellt einen neuen DatabaseHandler.
+     * Es werden KEINE Tabellen automatisch erstellt!
+     */
     public DatabaseHandler() {
         loadConfig();
-        setupDatabase();
     }
 
     private void loadConfig() {
@@ -75,537 +78,59 @@ public class DatabaseHandler {
         connection = DriverManager.getConnection(url, mysqlUsername, mysqlPassword);
     }
 
-    public void setupDatabase() {
+    /**
+     * Führt ein beliebiges CREATE TABLE-Statement aus.
+     * Der Entwickler ist selbst für das Statement verantwortlich!
+     * Beispiel:
+     *   handler.executeTableStatement("CREATE TABLE IF NOT EXISTS users (UUID TEXT PRIMARY KEY, Name TEXT);");
+     */
+    public void executeTableStatement(String sql) {
         try {
             ensureConnection();
             try (Statement stmt = connection.createStatement()) {
-                String createTableSql;
-
-                if ("mysql".equals(dbType)) {
-                    createTableSql = "CREATE TABLE IF NOT EXISTS %s ("
-                            + "UUID VARCHAR(36),"
-                            + "KeyName VARCHAR(255)," // 'Key' ist in MySQL ein reserviertes Wort
-                            + "Value TEXT,"
-                            + "Type VARCHAR(20),"
-                            + "PRIMARY KEY (UUID, KeyName)"
-                            + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-                } else {
-                    createTableSql = "CREATE TABLE IF NOT EXISTS %s ("
-                            + "UUID TEXT,"
-                            + "Key TEXT,"
-                            + "Value TEXT,"
-                            + "Type TEXT,"
-                            + "PRIMARY KEY (UUID, Key)"
-                            + ");";
-                }
-
-                stmt.executeUpdate(String.format(createTableSql, "users"));
-                stmt.executeUpdate(String.format(createTableSql, "currency"));
-                stmt.executeUpdate(String.format(createTableSql, "info"));
-                stmt.executeUpdate(String.format(createTableSql, "clan"));
-
-                // towns-Tabelle
-                String createTownsTable;
-                if ("mysql".equals(dbType)) {
-                    createTownsTable = "CREATE TABLE IF NOT EXISTS towns ("
-                            + "UUID VARCHAR(36) PRIMARY KEY,"
-                            + "Name VARCHAR(255),"
-                            + "Owner VARCHAR(255),"
-                            + "Members TEXT,"
-                            + "Population INT,"
-                            + "Budget DOUBLE,"
-                            + "ZentrumPlotId VARCHAR(255),"
-                            + "Level INT,"
-                            + "XP INT,"
-                            + "XPToNextLevel INT,"
-                            + "Tax INT DEFAULT 0,"
-                            + "MaxClaimedPlots INT DEFAULT 5,"
-                            + "IsPublic BOOLEAN DEFAULT TRUE"
-                            + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
-                } else {
-                    createTownsTable = "CREATE TABLE IF NOT EXISTS towns ("
-                            + "UUID TEXT PRIMARY KEY,"
-                            + "Name TEXT,"
-                            + "Owner TEXT,"
-                            + "Members TEXT,"
-                            + "Population INTEGER,"
-                            + "Budget REAL,"
-                            + "ZentrumPlotId TEXT,"
-                            + "Level INTEGER,"
-                            + "XP INTEGER,"
-                            + "XPToNextLevel INTEGER,"
-                            + "Tax INTEGER DEFAULT 0,"
-                            + "MaxClaimedPlots INTEGER DEFAULT 5,"
-                            + "IsPublic BOOLEAN DEFAULT 1"
-                            + ");";
-                }
-                stmt.executeUpdate(createTownsTable);
-
-                // town_plots
-                String createTownPlotsTable = "CREATE TABLE IF NOT EXISTS town_plots ("
-                        + "PlotId VARCHAR(255) PRIMARY KEY,"
-                        + "TownUUID VARCHAR(36)"
-                        + ");";
-                stmt.executeUpdate(createTownPlotsTable);
-
-                // town_citizens
-                String createTownCitizensTable = "CREATE TABLE IF NOT EXISTS town_citizens ("
-                        + "PlayerUUID VARCHAR(36),"
-                        + "TownUUID VARCHAR(36),"
-                        + "Role VARCHAR(64),"
-                        + "PRIMARY KEY (PlayerUUID, TownUUID)"
-                        + ");";
-                stmt.executeUpdate(createTownCitizensTable);
-
-                // town_ranks
-                String createTownRanksTable = "CREATE TABLE IF NOT EXISTS town_ranks ("
-                        + "TownUUID VARCHAR(36),"
-                        + "RankName VARCHAR(64),"
-                        + "Permissions TEXT,"
-                        + "PRIMARY KEY (TownUUID, RankName)"
-                        + ");";
-                stmt.executeUpdate(createTownRanksTable);
-
-                // town_invitations
-                String createTownInvitationsTable = "CREATE TABLE IF NOT EXISTS town_invitations ("
-                        + "PlayerUUID VARCHAR(36),"
-                        + "TownUUID VARCHAR(36),"
-                        + "PRIMARY KEY (PlayerUUID, TownUUID)"
-                        + ");";
-                stmt.executeUpdate(createTownInvitationsTable);
-
-                logger.info("Datenbanktabellen erfolgreich erstellt/überprüft!");
+                stmt.executeUpdate(sql);
+                logger.info("Tabellen-Statement erfolgreich ausgeführt.");
             }
         } catch (SQLException e) {
-            logger.severe("Fehler beim Einrichten der Datenbank: " + e.getMessage());
+            logger.severe("Fehler beim Ausführen des Tabellen-Statements: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    // --- Städte-Methoden ---
-
-    public void saveTown(Stadt stadt) {
-        try {
-            ensureConnection();
-            String sql = "INSERT INTO towns (UUID, Name, Owner, ZentrumPlotId, Level, Budget, XP, XPToNextLevel, Tax, MaxClaimedPlots, IsPublic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
-                    "ON DUPLICATE KEY UPDATE Name=?, Owner=?, ZentrumPlotId=?, Level=?, Budget=?, XP=?, XPToNextLevel=?, Tax=?, MaxClaimedPlots=?, IsPublic=?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, stadt.getStadtId().toString());
-                pstmt.setString(2, stadt.getName());
-                pstmt.setString(3, stadt.getGruenderUUID().toString());
-                pstmt.setString(4, stadt.getZentrumPlotId());
-                pstmt.setInt(5, stadt.getLevel());
-                pstmt.setInt(6, stadt.getBudget());
-                pstmt.setInt(7, stadt.getXp());
-                pstmt.setInt(8, stadt.getXpToNextLevel());
-                pstmt.setInt(9, stadt.getTax());
-                pstmt.setInt(10, stadt.getMaxClaimedPlots());
-                pstmt.setBoolean(11, stadt.isPublic());
-                pstmt.setString(12, stadt.getName());
-                pstmt.setString(13, stadt.getGruenderUUID().toString());
-                pstmt.setString(14, stadt.getZentrumPlotId());
-                pstmt.setInt(15, stadt.getLevel());
-                pstmt.setInt(16, stadt.getBudget());
-                pstmt.setInt(17, stadt.getXp());
-                pstmt.setInt(18, stadt.getXpToNextLevel());
-                pstmt.setInt(19, stadt.getTax());
-                pstmt.setInt(20, stadt.getMaxClaimedPlots());
-                pstmt.setBoolean(21, stadt.isPublic());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Speichern der Stadt: " + e.getMessage());
-        }
-    }
-
-    public Stadt loadTown(UUID uuid) {
-        try {
-            ensureConnection();
-            String sql = "SELECT * FROM towns WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, uuid.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return mapResultSetToStadt(rs);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der Stadt: " + e.getMessage());
-        }
-        return null;
-    }
-
-    public Stadt getTownByCitizen(UUID playerUUID) {
-        try {
-            ensureConnection();
-            String sql = "SELECT t.* FROM towns t " +
-                    "JOIN town_citizens c ON t.UUID = c.TownUUID " +
-                    "WHERE c.PlayerUUID = ? LIMIT 1";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return mapResultSetToStadt(rs);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der Stadt eines Bürgers: " + e.getMessage());
-        }
-        return null;
-    }
-
-    public Stadt getTownByName(String name) {
-        try {
-            ensureConnection();
-            String sql = "SELECT * FROM towns WHERE Name = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, name);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return mapResultSetToStadt(rs);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der Stadt nach Name: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Stadt mapResultSetToStadt(ResultSet rs) throws SQLException {
-        UUID stadtId = UUID.fromString(rs.getString("UUID"));
-        String name = rs.getString("Name");
-        UUID owner = UUID.fromString(rs.getString("Owner"));
-        String zentrumPlotId = rs.getString("ZentrumPlotId");
-        int level = rs.getInt("Level");
-        int budget = rs.getInt("Budget");
-        int xp = rs.getInt("XP");
-        int xpToNextLevel = rs.getInt("XPToNextLevel");
-        int tax = rs.getInt("Tax");
-        int maxClaimedPlots = rs.getInt("MaxClaimedPlots");
-        boolean isPublic = rs.getBoolean("IsPublic");
-        Stadt stadt = new Stadt(stadtId, name, owner, zentrumPlotId, level, budget, xp, xpToNextLevel);
-        stadt.setTax(tax);
-        stadt.setMaxClaimedPlots(maxClaimedPlots);
-        stadt.setPublic(isPublic);
-        return stadt;
-    }
-
-    public boolean isPlotAssignedToTown(String plotId) {
-        try {
-            ensureConnection();
-            String sql = "SELECT 1 FROM town_plots WHERE PlotId = ? LIMIT 1";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, plotId);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    return rs.next();
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler bei Plot-Stadt-Prüfung: " + e.getMessage());
-        }
-        return false;
-    }
-
-    public boolean isTownNameExists(String name) {
-        try {
-            ensureConnection();
-            String sql = "SELECT 1 FROM towns WHERE Name = ? LIMIT 1";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, name);
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    return rs.next();
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler bei Stadtname-Prüfung: " + e.getMessage());
-        }
-        return false;
-    }
-
-    public void assignPlotToTown(String plotId, UUID stadtId) {
-        try {
-            ensureConnection();
-            String sql = "INSERT INTO town_plots (PlotId, TownUUID) VALUES (?, ?)";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, plotId);
-                pstmt.setString(2, stadtId.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Plot-Zuweisen: " + e.getMessage());
-        }
-    }
-
-    public void addCitizenToTown(UUID playerUUID, UUID stadtId, String role) {
-        try {
-            ensureConnection();
-            String sql = "INSERT INTO town_citizens (PlayerUUID, TownUUID, Role) VALUES (?, ?, ?)";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                pstmt.setString(2, stadtId.toString());
-                pstmt.setString(3, role);
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Hinzufügen eines Bürgers: " + e.getMessage());
-        }
-    }
-
-    public List<String> getTownPlots(UUID townUUID) {
-        List<String> plots = new ArrayList<>();
-        try {
-            ensureConnection();
-            String sql = "SELECT PlotId FROM town_plots WHERE TownUUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, townUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    while (rs.next()) {
-                        plots.add(rs.getString("PlotId"));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der Stadtplots: " + e.getMessage());
-        }
-        return plots;
-    }
-
-    public void removeCitizen(UUID playerUUID, UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "DELETE FROM town_citizens WHERE PlayerUUID = ? AND TownUUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                pstmt.setString(2, townUUID.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Entfernen eines Bürgers: " + e.getMessage());
-        }
-    }
-
-    public void inviteCitizen(UUID playerUUID, UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "INSERT INTO town_invitations (PlayerUUID, TownUUID) VALUES (?, ?)";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                pstmt.setString(2, townUUID.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Einladen eines Bürgers: " + e.getMessage());
-        }
-    }
-
-    public boolean hasInvitation(UUID playerUUID, UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "SELECT 1 FROM town_invitations WHERE PlayerUUID = ? AND TownUUID = ? LIMIT 1";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                pstmt.setString(2, townUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    return rs.next();
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler bei Einladungssuche: " + e.getMessage());
-        }
-        return false;
-    }
-
-    public void removeInvitation(UUID playerUUID, UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "DELETE FROM town_invitations WHERE PlayerUUID = ? AND TownUUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                pstmt.setString(2, townUUID.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Entfernen einer Einladung: " + e.getMessage());
-        }
-    }
-
-    public List<Stadt> getInvitedTowns(UUID playerUUID) {
-        List<Stadt> invitedTowns = new ArrayList<>();
-        try {
-            ensureConnection();
-            String sql = "SELECT t.* FROM towns t " +
-                    "JOIN town_invitations i ON t.UUID = i.TownUUID " +
-                    "WHERE i.PlayerUUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, playerUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    while (rs.next()) {
-                        invitedTowns.add(mapResultSetToStadt(rs));
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der eingeladenen Städte: " + e.getMessage());
-        }
-        return invitedTowns;
-    }
-
-    // --- Level/XP/Upgrade ---
-
-    public void addXpToTown(Stadt stadt, int amount) {
-        int xp = stadt.getXp() + amount;
-        int level = stadt.getLevel();
-        int xpToNext = stadt.getXpToNextLevel();
-        boolean leveledUp = false;
-        while (xp >= xpToNext) {
-            xp -= xpToNext;
-            level++;
-            xpToNext = calculateXpToNextLevel(level);
-            leveledUp = true;
-        }
-        stadt.setXp(xp);
-        stadt.setLevel(level);
-        stadt.setXpToNextLevel(xpToNext);
-        saveTown(stadt);
-        if (leveledUp) {
-            handleTownLevelUp(stadt);
-        }
-    }
-
-    public int calculateXpToNextLevel(int level) {
-        int baseXp = 1000;
-        double multiplier = 1.5;
-        return (int) Math.round(baseXp * level * multiplier);
-    }
-
-    public void upgradeStadtLevel(Stadt stadt) {
-        int newLevel = stadt.getLevel() + 1;
-        int newMaxPlots = newLevel * 5;
-        stadt.setLevel(newLevel);
-        stadt.setMaxClaimedPlots(newMaxPlots);
-        stadt.setXp(0);
-        stadt.setXpToNextLevel(calculateXpToNextLevel(newLevel));
-        saveTown(stadt);
-        logger.info("Stadt " + stadt.getName() + " wurde auf Level " + newLevel + " upgegradet. Neue MaxClaimedPlots: " + newMaxPlots);
-    }
-
-    public void setTownTax(UUID townUUID, int tax) {
-        try {
-            ensureConnection();
-            String sql = "UPDATE towns SET Tax = ? WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setInt(1, tax);
-                pstmt.setString(2, townUUID.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Setzen der Stadtsteuer: " + e.getMessage());
-        }
-    }
-
-    public int getTownTax(UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "SELECT Tax FROM towns WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, townUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getInt("Tax");
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden der Stadtsteuer: " + e.getMessage());
-        }
-        return 0;
-    }
-
-    public void setTownPublic(UUID townUUID, boolean isPublic) {
-        try {
-            ensureConnection();
-            String sql = "UPDATE towns SET IsPublic = ? WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setBoolean(1, isPublic);
-                pstmt.setString(2, townUUID.toString());
-                pstmt.executeUpdate();
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Setzen von IsPublic: " + e.getMessage());
-        }
-    }
-
-    public boolean isTownPublic(UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "SELECT IsPublic FROM towns WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, townUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getBoolean("IsPublic");
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden von IsPublic: " + e.getMessage());
-        }
-        return true;
-    }
-
-    public int getMaxClaimedPlots(UUID townUUID) {
-        try {
-            ensureConnection();
-            String sql = "SELECT MaxClaimedPlots FROM towns WHERE UUID = ?";
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                pstmt.setString(1, townUUID.toString());
-                try (ResultSet rs = pstmt.executeQuery()) {
-                    if (rs.next()) {
-                        return rs.getInt("MaxClaimedPlots");
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Laden von MaxClaimedPlots: " + e.getMessage());
-        }
-        return 5;
-    }
-
-    // Dummy-Implementierung für angrenzende Plots (immer true)
-    public boolean isPlotAdjacentToTown(String plotId, UUID townUUID) {
-        // TODO: Implementiere echte Prüfung mit PlotSquared-API und town_plots
-        return true;
-    }
-
-    // --- Ressourcen-Management ---
-
-    public void closeConnection() {
-        try {
-            if (connection != null && !connection.isClosed()) {
-                connection.close();
-                logger.info("Datenbankverbindung geschlossen");
-            }
-        } catch (SQLException e) {
-            logger.severe("Fehler beim Schließen der Datenbankverbindung: " + e.getMessage());
-        }
-    }
-
-    @Override
-    protected void finalize() throws Throwable {
-        closeConnection();
-        super.finalize();
-    }
-
     /**
-     * Wird aufgerufen, wenn eine Stadt ein Level-Up erreicht.
-     * Hier können Belohnungen, Nachrichten oder andere Aktionen implementiert werden.
+     * Führt ein beliebiges CREATE TABLE-Statement aus.
+     * Beispiel:
+     *   databaseHandler.createTable("CREATE TABLE IF NOT EXISTS users (UUID TEXT PRIMARY KEY, Name TEXT);");
      */
-    private void handleTownLevelUp(Stadt stadt) {
-        logger.info("Stadt " + stadt.getName() + " hat Level " + stadt.getLevel() + " erreicht!");
-        // Hier können weitere Aktionen/Broadcasts/Belohnungen ergänzt werden.
+    public void createTable(String name) {
+        try {
+            ensureConnection();
+            String sql;
+            if ("mysql".equals(dbType)) {
+                sql = "CREATE TABLE IF NOT EXISTS " + name + " (" +
+                        "UUID VARCHAR(36)," +
+                        "KeyName VARCHAR(255)," +
+                        "Value TEXT," +
+                        "Type VARCHAR(20)," +
+                        "PRIMARY KEY (UUID, KeyName)" +
+                        ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            } else {
+                sql = "CREATE TABLE IF NOT EXISTS " + name + " (" +
+                        "UUID TEXT," +
+                        "Key TEXT," +
+                        "Value TEXT," +
+                        "Type TEXT," +
+                        "PRIMARY KEY (UUID, Key)" +
+                        ");";
+            }
+            try (Statement stmt = connection.createStatement()) {
+                stmt.executeUpdate(sql);
+                logger.info("Tabelle '" + name + "' erfolgreich erstellt oder bereits vorhanden.");
+            }
+        } catch (SQLException e) {
+            logger.severe("Fehler beim Erstellen der Tabelle '" + name + "': " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     private synchronized void saveGeneric(String tableName, UUID uuid, String key, Object value, String type) {
@@ -613,7 +138,6 @@ public class DatabaseHandler {
             ensureConnection();
             tableName = tableName.toLowerCase();
 
-            // Wert serialisieren
             String serializedValue;
             if (value instanceof String) {
                 serializedValue = (String) value;
@@ -880,7 +404,6 @@ public class DatabaseHandler {
         return loadFloat("users", uuid, key, defaultValue);
     }
 
-    // String-Array laden
     public String[] loadStringArray(String tableName, UUID uuid, String key) {
         try {
             ResultSet rs = loadRawData(tableName, uuid, key);
@@ -1004,5 +527,22 @@ public class DatabaseHandler {
 
     public boolean hasData(UUID uuid, String key) {
         return hasData("users", uuid, key);
+    }
+
+    public void closeConnection() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                logger.info("Datenbankverbindung geschlossen");
+            }
+        } catch (SQLException e) {
+            logger.severe("Fehler beim Schließen der Datenbankverbindung: " + e.getMessage());
+        }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        closeConnection();
+        super.finalize();
     }
 }
