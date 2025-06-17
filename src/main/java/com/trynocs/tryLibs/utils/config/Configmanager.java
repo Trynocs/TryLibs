@@ -1,8 +1,8 @@
 package com.trynocs.tryLibs.utils.config;
 
-import com.trynocs.tryLibs.main;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,13 +10,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Configmanager {
-    private final main plugin;
+    private final JavaPlugin plugin;
     private FileConfiguration config = null;
     private File configFile = null;
     private final Map<String, FileConfiguration> customConfigs = new HashMap<>();
     private final Map<String, File> customConfigFiles = new HashMap<>();
 
-    public Configmanager(main plugin) {
+    public Configmanager(JavaPlugin plugin) {
         this.plugin = plugin;
         saveDefaultConfig();
     }
