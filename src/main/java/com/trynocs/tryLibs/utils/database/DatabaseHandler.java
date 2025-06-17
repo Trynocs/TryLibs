@@ -2,7 +2,7 @@ package com.trynocs.tryLibs.utils.database;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.trynocs.tryLibs.main;
+import com.trynocs.tryLibs.TryLibs;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.io.File;
@@ -34,7 +34,7 @@ public class DatabaseHandler {
     }
 
     private void loadConfig() {
-        FileConfiguration config = main.getPlugin().getConfigManager().getConfig();
+        FileConfiguration config = TryLibs.getPlugin().getConfigManager().getConfig();
         this.dbType = config.getString("database.type", "sqlite").toLowerCase();
         logger.info("Verwende Datenbanktyp: " + dbType);
         this.sqlitePath = config.getString("database.sqlite.path", "plugins/BlockEngine/blockengine.db");

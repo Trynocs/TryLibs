@@ -30,8 +30,8 @@ import java.util.stream.Collectors;
  *   import com.trynocs.tryLibs.utils.gui.ItemBuilder;
  *   ItemStack item = new ItemBuilder(Material.DIAMOND_SWORD).setName("§bSchwert").build();
  */
-public final class main extends JavaPlugin {
-    private static main instance;
+public final class TryLibs extends JavaPlugin {
+    private static TryLibs instance;
     private Configmanager configManager;
     private DatabaseHandler databaseHandler;
     private String economyDatabaseName;
@@ -58,7 +58,7 @@ public final class main extends JavaPlugin {
      * Gibt die Instanz des Plugins zurück.
      * @return main Instanz
      */
-    public static main getPlugin() {
+    public static TryLibs getPlugin() {
         return instance;
     }
 
@@ -83,7 +83,7 @@ public final class main extends JavaPlugin {
     }
 
     public static List<String> translateColors(List<String> texts) {
-        return texts.stream().map(main::translateColors).collect(Collectors.toList());
+        return texts.stream().map(TryLibs::translateColors).collect(Collectors.toList());
     }
 
     /**

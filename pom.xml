@@ -25,12 +25,12 @@
         <developer>
             <id>trynocs</id>
             <name>Trynocs Development</name>
-            <email>dev@trynocs.com</email>
+            <email>contact@trynocs.com</email>
         </developer>
     </developers>
 
     <scm>
-        <url>https://github.com/TryNocs/TryLibs</url>
+        <url>https://github.com/Trynocs/TryLibs</url>
         <connection>scm:git:git://github.com/Trynocs/TryLibs.git</connection>
         <developerConnection>scm:git:ssh://github.com:Trynocs/TryLibs.git</developerConnection>
     </scm>
