@@ -540,6 +540,34 @@ public class DatabaseHandler {
         }
     }
 
+    /**
+     * Prüft, ob eine Tabelle bereits existiert.
+     * @param tableName Name der Tabelle
+     * @return true, wenn die Tabelle existiert, sonst false
+     */
+    public boolean tableExists(String tableName) {
+        ensureConnection();
+        try {
+            if ("mysql".equals(dbType)) {
+                DatabaseMetaData meta = connection.getMetaData();
+                try (ResultSet rs = meta.getTables(null, null, tableName, null)) {
+                    return rs.next();
+                }
+            } else {
+                String sql = "SELECT name FROM sqlite_master WHERE type='table' AND name=?;";
+                try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
+                    pstmt.setString(1, tableName);
+                    try (ResultSet rs = pstmt.executeQuery()) {
+                        return rs.next();
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            logger.severe("Fehler beim Überprüfen der Tabellenvorhandensein: " + e.getMessage());
+            return false;
+        }
+    }
+
     @Override
     protected void finalize() throws Throwable {
         closeConnection();
