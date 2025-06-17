@@ -1,2 +1,11 @@
 database:
-  
+  type: sqlite  # Optionen: sqlite, mysql
+  mysql:
+    host: localhost
+    port: 3306
+    database: blockengine
+    username: root
+    password: password
+  sqlite:
+    path: "plugins/TryLibs/TryLibs.db"
+  economytable: "economy"
