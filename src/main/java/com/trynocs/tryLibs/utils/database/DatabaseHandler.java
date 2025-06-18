@@ -25,6 +25,8 @@ public class DatabaseHandler {
     private final Gson gson = new Gson();
     private UUID dummyUUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
     private boolean configLoaded = false;
+    private int initAttempts = 0;
+    private final int MAX_INIT_ATTEMPTS = 3;
 
     /**
      * Erstellt einen neuen DatabaseHandler.
@@ -37,8 +39,23 @@ public class DatabaseHandler {
 
     private synchronized void loadConfig() {
         if (configLoaded) return;
-
+        
+        initAttempts++;
         try {
+            // Check if TryLibs is properly initialized
+            if (!TryLibs.isInitialized()) {
+                if (initAttempts >= MAX_INIT_ATTEMPTS) {
+                    logger.severe("Failed to load database configuration after " + MAX_INIT_ATTEMPTS + 
+                                 " attempts. TryLibs initialization state: " + TryLibs.getInitializationState());
+                    throw new IllegalStateException("TryLibs is not properly initialized. Current state: " + 
+                                                   TryLibs.getInitializationState());
+                } else {
+                    logger.warning("TryLibs not fully initialized yet. Will retry. Current state: " + 
+                                  TryLibs.getInitializationState());
+                    return;
+                }
+            }
+
             // Ensure TryLibs is properly initialized
             TryLibs plugin = TryLibs.getPlugin();
             if (plugin == null) {
@@ -60,6 +77,8 @@ public class DatabaseHandler {
             this.mysqlUsername = config.getString("database.mysql.username", "root");
             this.mysqlPassword = config.getString("database.mysql.password", "password");
             configLoaded = true;
+            initAttempts = 0;
+            logger.info("Database configuration successfully loaded");
         } catch (IllegalStateException e) {
             logger.severe("Failed to load database configuration: " + e.getMessage());
             throw e;

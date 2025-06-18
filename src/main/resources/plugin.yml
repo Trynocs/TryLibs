@@ -1,7 +1,9 @@
 name: TryLibs
-version: '0.5'
+version: '0.9.3'
 main: com.trynocs.tryLibs.TryLibs
-api-version: '1.21'
+api-version: '1.20'
 authors: [ "Trynocs" ]
+description: Utility library for Bukkit/Spigot/Paper plugins
+load: STARTUP
+loadbefore: [BPUtils, BPJobs]
 api: true
-
