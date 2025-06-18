@@ -59,6 +59,9 @@ public final class TryLibs extends JavaPlugin {
      * @return main Instanz
      */
     public static TryLibs getPlugin() {
+        if (instance == null) {
+            throw new IllegalStateException("TryLibs instance is not yet initialized!");
+        }
         return instance;
     }
 
