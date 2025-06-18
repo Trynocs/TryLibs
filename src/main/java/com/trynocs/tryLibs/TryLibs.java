@@ -37,10 +37,27 @@ public final class TryLibs extends JavaPlugin {
     private String economyDatabaseName;
 
     @Override
-    public void onEnable() {
+    public void onLoad() {
+        // Initialize instance as early as possible
         instance = this;
+        getLogger().info("TryLibs instance initialized in onLoad phase");
+    }
+
+    @Override
+    public void onEnable() {
+        // Ensure instance is set even if onLoad wasn't called
+        if (instance == null) {
+            instance = this;
+            getLogger().info("TryLibs instance initialized in onEnable phase");
+        }
+        
+        // Initialize configuration manager first
         configManager = new Configmanager(this);
+        
+        // Create database handler (but actual config loading is deferred)
         databaseHandler = new DatabaseHandler();
+        
+        // Load configuration values
         economyDatabaseName = getConfig().getString("database.economytable", "economy");
         
         getLogger().info("TryLibs wurde erfolgreich aktiviert!");
@@ -60,7 +77,9 @@ public final class TryLibs extends JavaPlugin {
      */
     public static TryLibs getPlugin() {
         if (instance == null) {
-            throw new IllegalStateException("TryLibs instance is not yet initialized!");
+            throw new IllegalStateException("TryLibs instance is not yet initialized! " +
+                "Make sure your plugin declares 'depend: [TryLibs]' in its plugin.yml " +
+                "and that the server is loading plugins in the correct order.");
         }
         return instance;
     }

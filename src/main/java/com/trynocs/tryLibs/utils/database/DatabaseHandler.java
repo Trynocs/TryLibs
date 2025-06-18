@@ -24,32 +24,53 @@ public class DatabaseHandler {
     private String mysqlPassword;
     private final Gson gson = new Gson();
     private UUID dummyUUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    private boolean configLoaded = false;
 
     /**
      * Erstellt einen neuen DatabaseHandler.
      * Es werden KEINE Tabellen automatisch erstellt!
+     * Die Konfiguration wird verzögert geladen, wenn zuerst darauf zugegriffen wird.
      */
     public DatabaseHandler() {
-        loadConfig();
+        // Configuration loading is deferred until first use
     }
 
-    private void loadConfig() {
-        FileConfiguration config = TryLibs.getPlugin().getConfigManager().getConfig();
-        this.dbType = config.getString("database.type", "sqlite").toLowerCase();
-        logger.info("Verwende Datenbanktyp: " + dbType);
-        this.sqlitePath = config.getString("database.sqlite.path", "plugins/BlockEngine/blockengine.db");
-        File dataFolder = new File(sqlitePath.substring(0, sqlitePath.lastIndexOf("/")));
-        if (!dataFolder.exists()) {
-            dataFolder.mkdirs();
+    private synchronized void loadConfig() {
+        if (configLoaded) return;
+
+        try {
+            // Ensure TryLibs is properly initialized
+            TryLibs plugin = TryLibs.getPlugin();
+            if (plugin == null) {
+                logger.severe("TryLibs plugin instance is null! Cannot load database configuration.");
+                return;
+            }
+
+            FileConfiguration config = plugin.getConfigManager().getConfig();
+            this.dbType = config.getString("database.type", "sqlite").toLowerCase();
+            logger.info("Verwende Datenbanktyp: " + dbType);
+            this.sqlitePath = config.getString("database.sqlite.path", "plugins/BlockEngine/blockengine.db");
+            File dataFolder = new File(sqlitePath.substring(0, sqlitePath.lastIndexOf("/")));
+            if (!dataFolder.exists()) {
+                dataFolder.mkdirs();
+            }
+            this.mysqlHost = config.getString("database.mysql.host", "localhost");
+            this.mysqlPort = config.getInt("database.mysql.port", 3306);
+            this.mysqlDatabase = config.getString("database.mysql.database", "blockengine");
+            this.mysqlUsername = config.getString("database.mysql.username", "root");
+            this.mysqlPassword = config.getString("database.mysql.password", "password");
+            configLoaded = true;
+        } catch (IllegalStateException e) {
+            logger.severe("Failed to load database configuration: " + e.getMessage());
+            throw e;
         }
-        this.mysqlHost = config.getString("database.mysql.host", "localhost");
-        this.mysqlPort = config.getInt("database.mysql.port", 3306);
-        this.mysqlDatabase = config.getString("database.mysql.database", "blockengine");
-        this.mysqlUsername = config.getString("database.mysql.username", "root");
-        this.mysqlPassword = config.getString("database.mysql.password", "password");
     }
 
     private synchronized void ensureConnection() {
+        if (!configLoaded) {
+            loadConfig();
+        }
+
         try {
             if (connection == null || connection.isClosed()) {
                 if ("mysql".equals(dbType)) {
