@@ -3,6 +3,7 @@ package com.trynocs.tryLibs;
 import com.google.gson.JsonObject;
 import com.trynocs.tryLibs.utils.config.Configmanager;
 import com.trynocs.tryLibs.utils.database.DatabaseHandler;
+import com.trynocs.tryLibs.utils.economy.VaultSetup;
 import com.trynocs.tryLibs.utils.gui.ItemBuilder;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -117,6 +118,9 @@ public final class TryLibs extends JavaPlugin {
             economyDatabaseName = getConfig().getString("database.economytable", "economy");
             
             // Mark as fully initialized
+            initializationState = "Hooking into Vault";
+            VaultSetup.setupVault(this);
+
             initializationState = "Successfully initialized";
             fullyInitialized = true;
             initializing = false;
