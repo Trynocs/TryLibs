@@ -40,30 +40,66 @@ public final class TryLibs extends JavaPlugin {
     private static boolean initializing = false;
     private static String initializationState = "Not started";
     private static final boolean DEBUG_MODE = true;
+    private static ClassLoader originalClassLoader = null;
+    private static boolean classLoaderWarningShown = false;
+    private static boolean isEmbeddedMode = false;
     private Configmanager configManager;
     private DatabaseHandler databaseHandler;
     private String economyDatabaseName;
 
     static {
-        // This will be executed once when the class is loaded
-        debugLog("TryLibs class loaded");
+        // Track the original classloader that first loaded this class
+        if (originalClassLoader == null) {
+            originalClassLoader = TryLibs.class.getClassLoader();
+            debugLog("TryLibs class first loaded by classloader: " + originalClassLoader);
+        } else {
+            // If we're here, the class is being loaded by a different classloader
+            ClassLoader currentClassLoader = TryLibs.class.getClassLoader();
+            if (currentClassLoader != originalClassLoader && !classLoaderWarningShown) {
+                debugLog("WARNING: TryLibs class loaded by multiple classloaders!");
+                debugLog("Original classloader: " + originalClassLoader);
+                debugLog("Current classloader: " + currentClassLoader);
+                debugLog("This typically happens when a plugin includes (shades) TryLibs in its JAR.");
+                classLoaderWarningShown = true;
+                isEmbeddedMode = true;
+            }
+        }
     }
 
     @Override
     public void onLoad() {
-        // Initialize instance as early as possible
-        instance = this;
-        initializationState = "Instance set in onLoad";
-        debugLog("TryLibs instance initialized in onLoad phase");
+        // Check classloader to detect if we're running as the real plugin or a shaded copy
+        ClassLoader currentClassLoader = getClass().getClassLoader();
+        debugLog("TryLibs plugin onLoad called with classloader: " + currentClassLoader);
+        
+        // Only set instance if this is the actual plugin instance or no instance exists yet
+        if (instance == null || currentClassLoader == originalClassLoader) {
+            instance = this;
+            initializationState = "Instance set in onLoad";
+            debugLog("TryLibs instance initialized in onLoad phase");
+        } else {
+            debugLog("Ignoring onLoad call from non-original classloader");
+        }
     }
 
     @Override
     public void onEnable() {
-        // Ensure instance is set even if onLoad wasn't called
+        // Check classloader to detect if we're running as the real plugin or a shaded copy
+        ClassLoader currentClassLoader = getClass().getClassLoader();
+        debugLog("TryLibs plugin onEnable called with classloader: " + currentClassLoader);
+        
+        // Only proceed with initialization if this is the actual plugin instance or no instance exists yet
         if (instance == null) {
             instance = this;
             initializationState = "Instance set in onEnable";
             debugLog("TryLibs instance initialized in onEnable phase");
+        } else if (currentClassLoader != originalClassLoader) {
+            getLogger().warning("TryLibs detected multiple classloaders - this instance is running in embedded mode");
+            getLogger().warning("Original classloader: " + originalClassLoader);
+            getLogger().warning("Current classloader: " + currentClassLoader);
+            getLogger().warning("This typically happens when a plugin includes (shades) TryLibs in its JAR.");
+            getLogger().warning("Only one instance of TryLibs should be loaded - prefer using it as a plugin dependency.");
+            return; // Skip initialization for shaded copies
         }
         
         initializing = true;
@@ -91,9 +127,6 @@ public final class TryLibs extends JavaPlugin {
                 debugLog("  - " + plugin.getName() + " (enabled: " + plugin.isEnabled() + ")");
             }
             
-            // Call initialization event for other plugins to listen to
-            Bukkit.getPluginManager().callEvent(new TryLibsInitializedEvent());
-            
             getLogger().info("TryLibs wurde erfolgreich aktiviert!");
         } catch (Exception e) {
             initializationState = "Failed with error: " + e.getMessage();
@@ -119,6 +152,14 @@ public final class TryLibs extends JavaPlugin {
      * @return main Instanz
      */
     public static TryLibs getPlugin() {
+        if (isEmbeddedMode) {
+            String errorMsg = "TryLibs detected that it's being loaded from multiple classloaders. " +
+                "Original: " + originalClassLoader + ", Current: " + TryLibs.class.getClassLoader() + ". " +
+                "This typically happens when a plugin includes (shades) TryLibs classes in its JAR. " +
+                "Please modify your plugin to use TryLibs as a proper dependency instead of embedding it.";
+            Bukkit.getLogger().severe(errorMsg);
+        }
+        
         if (instance == null) {
             String errorMsg = "TryLibs instance is not yet initialized! " +
                 "Make sure your plugin declares 'depend: [TryLibs]' in its plugin.yml " +
@@ -161,6 +202,11 @@ public final class TryLibs extends JavaPlugin {
      * @return TryLibs instance or null if not fully initialized
      */
     public static TryLibs getPluginSafe() {
+        if (isEmbeddedMode) {
+            debugLog("TryLibs.getPluginSafe() called from embedded mode. Classloader: " + 
+                  TryLibs.class.getClassLoader());
+        }
+        
         if (instance == null || !fullyInitialized) {
             return null;
         }
@@ -172,7 +218,20 @@ public final class TryLibs extends JavaPlugin {
      * @return true if TryLibs is ready to use
      */
     public static boolean isInitialized() {
+        if (isEmbeddedMode) {
+            debugLog("TryLibs.isInitialized() called from embedded mode. Classloader: " + 
+                  TryLibs.class.getClassLoader());
+            // If we're in embedded mode, we should warn about it but still allow initialization checks
+        }
         return instance != null && fullyInitialized;
+    }
+
+    /**
+     * Checks if TryLibs is being loaded from multiple classloaders.
+     * @return true if TryLibs is being loaded by multiple classloaders
+     */
+    public static boolean isEmbeddedMode() {
+        return isEmbeddedMode;
     }
 
     /**
@@ -182,6 +241,9 @@ public final class TryLibs extends JavaPlugin {
      * @return String describing the current initialization state
      */
     public static String getInitializationState() {
+        if (isEmbeddedMode) {
+            return initializationState + " (WARNING: Embedded mode detected)";
+        }
         return initializationState;
     }
     
@@ -280,18 +342,18 @@ public final class TryLibs extends JavaPlugin {
             throw new RuntimeException(e);
         }
     }
-    
+
     /**
      * Event that gets fired when TryLibs is fully initialized.
      * Plugins can listen to this event to safely start using TryLibs.
      */
     public static class TryLibsInitializedEvent extends Event {
         private static final HandlerList handlers = new HandlerList();
-        
+
         public HandlerList getHandlers() {
             return handlers;
         }
-        
+
         public static HandlerList getHandlerList() {
             return handlers;
         }

@@ -27,6 +27,7 @@ public class DatabaseHandler {
     private boolean configLoaded = false;
     private int initAttempts = 0;
     private final int MAX_INIT_ATTEMPTS = 3;
+    private boolean classloaderWarningShown = false;
 
     /**
      * Erstellt einen neuen DatabaseHandler.
@@ -42,6 +43,12 @@ public class DatabaseHandler {
         
         initAttempts++;
         try {
+            // Check for classloader conflicts
+            if (!classloaderWarningShown && TryLibs.isEmbeddedMode()) {
+                logger.warning("DatabaseHandler detected TryLibs in embedded mode. This may cause issues.");
+                classloaderWarningShown = true;
+            }
+            
             // Check if TryLibs is properly initialized
             if (!TryLibs.isInitialized()) {
                 if (initAttempts >= MAX_INIT_ATTEMPTS) {
