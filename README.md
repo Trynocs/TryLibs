@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 # TryLibs
 
 TryLibs is a utility library for Bukkit/Spigot/Paper Minecraft server plugins, providing common functionalities to streamline plugin development.
@@ -17,16 +18,77 @@ It is recommended to install TryLibs as a standalone plugin on your server. Then
 ### For Plugin Developers (Maven)
 
 Add TryLibs as a dependency in your `pom.xml`:
+=======
+# TryLibs - Utility Library for Bukkit/Spigot/Paper Plugins
+
+TryLibs is a utility library that provides common functionality for Minecraft plugins.
+
+## For Plugin Developers
+
+### Proper Dependency Management
+
+To use TryLibs in your plugin, you need to:
+
+1. Add TryLibs as a dependency in your plugin.yml:
+
+```yaml
+depend: [TryLibs]
+```
+
+2. Use one of these methods to access TryLibs:
+
+```java
+// Method 1: Standard way (throws exception if not ready)
+TryLibs tryLibs = TryLibs.getPlugin();
+
+// Method 2: Safe way (returns null if not ready)
+TryLibs tryLibs = TryLibs.getPluginSafe();
+if (tryLibs != null) {
+    // Use TryLibs
+}
+
+// Method 3: Check initialization status
+if (TryLibs.isInitialized()) {
+    TryLibs tryLibs = TryLibs.getPlugin();
+    // Use TryLibs
+}
+
+// Method 4: Listen for initialization event
+@EventHandler
+public void onTryLibsInitialized(TryLibs.TryLibsInitializedEvent event) {
+    // TryLibs is now fully initialized and ready to use
+    TryLibs tryLibs = TryLibs.getPlugin();
+    // Use TryLibs
+}
+```
+
+### IMPORTANT: Do Not Shade TryLibs Into Your Plugin
+
+A common error is including (shading) TryLibs classes in your own plugin JAR file. This causes classloader conflicts where TryLibs is loaded twice:
+- Once as the actual plugin
+- Once from your plugin's classloader
+
+This results in the error: `TryLibs is not properly initialized!` even though TryLibs is installed and enabled.
+
+#### How to Fix:
+
+1. In your Maven pom.xml, mark TryLibs as `provided` scope:
+>>>>>>> Stashed changes
 
 ```xml
 <dependency>
     <groupId>com.trynocs</groupId>
     <artifactId>trylibs</artifactId>
+<<<<<<< Updated upstream
     <version>1.0.0</version> <!-- Replace with the latest version -->
+=======
+    <version>1.0.0</version>
+>>>>>>> Stashed changes
     <scope>provided</scope>
 </dependency>
 ```
 
+<<<<<<< Updated upstream
 And ensure your plugin's `plugin.yml` declares a dependency on TryLibs:
 
 ```yaml
@@ -104,10 +166,50 @@ public class YourPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         this.tryLibsAPI = null; // Clear the API instance
+=======
+2. In Gradle:
+
+```groovy
+dependencies {
+    compileOnly 'com.trynocs:trylibs:1.0.0'
+}
+```
+
+3. If using Maven Shade plugin, exclude TryLibs:
+
+```xml
+<plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-shade-plugin</artifactId>
+    <version>3.5.3</version>
+    <configuration>
+        <artifactSet>
+            <excludes>
+                <exclude>com.trynocs:trylibs</exclude>
+            </excludes>
+        </artifactSet>
+    </configuration>
+</plugin>
+```
+
+### Gradle Shadow Plugin
+
+If using the Gradle Shadow plugin, exclude TryLibs so it is not shaded into your final jar:
+
+```groovy
+dependencies {
+    compileOnly 'com.trynocs:trylibs:1.0.0'
+}
+
+shadowJar {
+    dependencies {
+        exclude(dependency('com.trynocs:trylibs:.*'))
+>>>>>>> Stashed changes
     }
 }
 ```
 
+<<<<<<< Updated upstream
 ### Note on Shading
 It is generally **not recommended** to shade (embed) TryLibs into your plugin's JAR file. Instead, rely on the standalone TryLibs plugin being installed on the server. This ensures that all plugins use a consistent version of the library and avoids potential classloader conflicts or issues with multiple instances trying to manage the same resources.
 
@@ -120,3 +222,33 @@ TryLibs uses Apache Maven.
 
 This will produce the `TryLibs-VERSION.jar` in the `target` directory.
 ```
+=======
+### Common Error: TryLibs instance is not yet initialized
+
+If you see logs like "[TryLibs DEBUG] TryLibs class first loaded by classloader: PluginClassLoader{plugin=BPEconomy ...}", it often means your plugin is shading or bundling TryLibs classes.  
+• Ensure your plugin.yml includes "depend: [TryLibs]"  
+• Mark TryLibs as "provided" in your pom.xml  
+• Do not package TryLibs classes inside your own plugin's jar  
+
+### Troubleshooting
+
+If you see errors about TryLibs not being initialized:
+
+1. Make sure you have `depend: [TryLibs]` in your plugin.yml
+2. Check for classloader conflicts with `TryLibs.isEmbeddedMode()`
+3. Consider using the safe access methods shown above
+4. Use `TryLibs.getInitializationState()` to check the current initialization state
+5. Ensure you're not trying to access TryLibs in static initializers
+
+## Developers
+
+### Building From Source
+
+```bash
+mvn clean package
+```
+
+### API Documentation
+
+See the JavaDocs for detailed API documentation.
+>>>>>>> Stashed changes

@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
  *   ItemStack item = new ItemBuilder(Material.DIAMOND_SWORD).setName("§bSchwert").build();
  */
 public final class TryLibs extends JavaPlugin implements TryLibsAPI {
+    /** The static instance of the main TryLibs plugin. */
     private static TryLibs instance; // Retained for internal use and managing the "primary" instance
     private static boolean fullyInitialized = false;
     private static boolean initializing = false;
@@ -70,7 +71,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
         // Check classloader to detect if we're running as the real plugin or a shaded copy
         ClassLoader currentClassLoader = getClass().getClassLoader();
         debugLog("TryLibs plugin onLoad called with classloader: " + currentClassLoader);
-        
+
         // Only allow the original classloader to set the static instance.
         if (currentClassLoader == originalClassLoader) {
             instance = this;
@@ -97,7 +98,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
             // It should not perform primary initialization or register services.
             // It relies on the "real" TryLibs plugin being present and providing the service.
             getLogger().warning("This is an embedded (shaded) instance of TryLibs from " + getName() +
-                                ". It will not perform primary initialization. Ensure the standalone TryLibs plugin is installed.");
+                    ". It will not perform primary initialization. Ensure the standalone TryLibs plugin is installed.");
             isEmbeddedMode = true; // Explicitly set here for clarity
             return; // Skip initialization for shaded copies
         }
@@ -105,9 +106,9 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
         // At this point, currentClassLoader == originalClassLoader, so this is the "real" plugin.
         if (instance != this && instance != null) {
             getLogger().warning("TryLibs instance was unexpectedly set by a different classloader (" +
-                                (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") +
-                                ") before the main plugin instance (" +
-                                currentClassLoader + ") could initialize. Correcting to this instance.");
+                    (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") +
+                    ") before the main plugin instance (" +
+                    currentClassLoader + ") could initialize. Correcting to this instance.");
         }
         instance = this; // Ensure 'instance' points to this, the "real" plugin instance.
         initializing = true;
@@ -123,7 +124,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
 
             initializationState = "Loading economy table name from config";
             economyDatabaseName = configManager.getConfig().getString("database.economytable", "economy");
-            
+
             initializationState = "Registering TryLibsAPI service";
             getServer().getServicesManager().register(TryLibsAPI.class, this, this, ServicePriority.Normal);
             debugLog("TryLibsAPI service registered.");
@@ -209,8 +210,8 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     public static TryLibs getPlugin() {
         if (isEmbeddedMode && (instance == null || instance.getClass().getClassLoader() != originalClassLoader)) {
             String errorMsg = "TryLibs.getPlugin() called in an ambiguous context (likely embedded mode). " +
-                "Original CL: " + originalClassLoader + ", Current static instance CL: " + (instance != null ? (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") : "null") +
-                ". Please use Bukkit's Services Manager to get TryLibsAPI.";
+                    "Original CL: " + originalClassLoader + ", Current static instance CL: " + (instance != null ? (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") : "null") +
+                    ". Please use Bukkit's Services Manager to get TryLibsAPI.";
             Bukkit.getLogger().warning(errorMsg);
             org.bukkit.plugin.RegisteredServiceProvider<TryLibsAPI> provider = Bukkit.getServer().getServicesManager().getRegistration(TryLibsAPI.class);
             if (provider != null && provider.getProvider() instanceof TryLibs) {
@@ -221,18 +222,18 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
 
         if (instance == null) {
             Bukkit.getLogger().severe("TryLibs.getPlugin() called before instance is initialized! " +
-                "Ensure TryLibs is loaded and enabled. Current state: " + initializationState);
+                    "Ensure TryLibs is loaded and enabled. Current state: " + initializationState);
             if (Bukkit.getPluginManager() != null) printPluginLoadState(); // Check if plugin manager is available
             return null;
         }
 
         if (!fullyInitialized && initializing) {
             Bukkit.getLogger().warning("TryLibs.getPlugin() called while TryLibs is still initializing (State: " + initializationState + "). " +
-                                      "The API might not be fully available. Consider listening to TryLibsInitializedEvent or using the Services Manager later.");
+                    "The API might not be fully available. Consider listening to TryLibsInitializedEvent or using the Services Manager later.");
         } else if (!fullyInitialized) {
-             Bukkit.getLogger().warning("TryLibs.getPlugin() called but TryLibs is not fully initialized (State: " + initializationState + ").");
+            Bukkit.getLogger().warning("TryLibs.getPlugin() called but TryLibs is not fully initialized (State: " + initializationState + ").");
         }
-        
+
         return instance;
     }
 
@@ -256,10 +257,10 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
         // Check if the current instance is the primary one and fully initialized
         if (instance == null || !fullyInitialized || instance.getClass().getClassLoader() != originalClassLoader) {
             debugLog("TryLibs.getPluginSafe() returning null. Instance: " + (instance == null ? "null" : "exists") +
-                     ", Initialized: " + fullyInitialized +
-                     ", Instance CL: " + (instance != null ? (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") : "N/A") +
-                     ", Original CL: " + originalClassLoader +
-                     ", State: " + initializationState);
+                    ", Initialized: " + fullyInitialized +
+                    ", Instance CL: " + (instance != null ? (instance.getClass().getClassLoader() != null ? instance.getClass().getClassLoader().toString() : "unknown") : "N/A") +
+                    ", Original CL: " + originalClassLoader +
+                    ", State: " + initializationState);
             return null;
         }
         return instance;
@@ -297,7 +298,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     /**
      * Gets the current initialization state of TryLibs.
      * Useful for debugging loading issues.
-     * 
+     *
      * @return String describing the current initialization state
      */
     public static String getInitializationState() {
@@ -306,7 +307,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
         }
         return initializationState;
     }
-    
+
     /**
      * Prints the current load state of all plugins for debugging purposes
      */
@@ -320,7 +321,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
             Bukkit.getLogger().severe("Plugin manager not available yet - extremely early initialization!");
         }
     }
-    
+
     /**
      * Log debug information if debug mode is enabled
      */
@@ -345,10 +346,10 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
         // If called on a shaded instance that didn't initialize, this would be null.
         // A more robust approach might involve shaded instances forwarding calls to the service if they detect they are shaded.
         if (this.getClass().getClassLoader() != originalClassLoader && instance != null && instance != this) {
-             TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
-             if (service != null) return service.getConfigManager();
-             getLogger().warning("Tried to access ConfigManager from a shaded instance without a primary service. This is problematic.");
-             return null; // Or throw
+            TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
+            if (service != null) return service.getConfigManager();
+            getLogger().warning("Tried to access ConfigManager from a shaded instance without a primary service. This is problematic.");
+            return null; // Or throw
         }
         return configManager;
     }
@@ -360,16 +361,16 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     @Override
     public DatabaseHandler getDatabaseHandler() {
         if (this.getClass().getClassLoader() != originalClassLoader && instance != null && instance != this) {
-             TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
-             if (service != null) return service.getDatabaseHandler();
-             getLogger().warning("Tried to access DatabaseHandler from a shaded instance without a primary service. This is problematic.");
-             return null; // Or throw
+            TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
+            if (service != null) return service.getDatabaseHandler();
+            getLogger().warning("Tried to access DatabaseHandler from a shaded instance without a primary service. This is problematic.");
+            return null; // Or throw
         }
         return databaseHandler;
     }
 
     /**
-     * Translates alternate color codes using '&' character in the given text.
+     * Translates alternate color codes using '&amp;' character in the given text.
      * This method is static and can be used directly, but also provided via API for consistency.
      * @param text The text to translate.
      * @return The translated text with color codes.
@@ -384,7 +385,7 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     }
 
     /**
-     * Translates alternate color codes using '&' character in each string of the given list.
+     * Translates alternate color codes using '&amp;' character in each string of the given list.
      * This method is static and can be used directly, but also provided via API for consistency.
      * @param texts The list of strings to translate.
      * @return A new list containing the translated strings.
@@ -401,15 +402,15 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     /**
      * Gibt den Namen der Economy
      * Datenbanktabelle zurück.
-        * @return Name der Economy-Datenbanktabelle
-        */
+     * @return Name der Economy-Datenbanktabelle
+     */
     @Override
     public String getEconomyDatabaseName() {
-         if (this.getClass().getClassLoader() != originalClassLoader && instance != null && instance != this) {
-             TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
-             if (service != null) return service.getEconomyDatabaseName();
-             getLogger().warning("Tried to access EconomyDatabaseName from a shaded instance without a primary service. This is problematic.");
-             return null; // Or throw
+        if (this.getClass().getClassLoader() != originalClassLoader && instance != null && instance != this) {
+            TryLibsAPI service = Bukkit.getServer().getServicesManager().load(TryLibsAPI.class);
+            if (service != null) return service.getEconomyDatabaseName();
+            getLogger().warning("Tried to access EconomyDatabaseName from a shaded instance without a primary service. This is problematic.");
+            return null; // Or throw
         }
         return economyDatabaseName;
     }
@@ -463,10 +464,22 @@ public final class TryLibs extends JavaPlugin implements TryLibsAPI {
     public static class TryLibsInitializedEvent extends Event {
         private static final HandlerList handlers = new HandlerList();
 
+        /**
+         * Default constructor for TryLibsInitializedEvent.
+         */
+        public TryLibsInitializedEvent() {
+            super(); // Call the Event constructor
+        }
+
+        @Override
         public HandlerList getHandlers() {
             return handlers;
         }
 
+        /**
+         * Gets the handler list for this event.
+         * @return The handler list.
+         */
         public static HandlerList getHandlerList() {
             return handlers;
         }

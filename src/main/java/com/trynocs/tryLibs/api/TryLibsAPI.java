@@ -21,7 +21,6 @@ import java.util.List;
  *     Bukkit.getLogger().severe("TryLibs API not found! Make sure TryLibs is installed and enabled.");
  * }
  * }</pre>
- * </p>
  */
 public interface TryLibsAPI {
 
@@ -40,7 +39,7 @@ public interface TryLibsAPI {
     DatabaseHandler getDatabaseHandler();
 
     /**
-     * Translates alternate color codes using '&' character in the given text.
+     * Translates alternate color codes using '&amp;' character in the given text.
      *
      * @param text The text to translate.
      * @return The translated text with color codes.
@@ -48,7 +47,7 @@ public interface TryLibsAPI {
     String translateColors(String text);
 
     /**
-     * Translates alternate color codes using '&' character in each string of the given list.
+     * Translates alternate color codes using '&amp;' character in each string of the given list.
      *
      * @param texts The list of strings to translate.
      * @return A new list containing the translated strings.
