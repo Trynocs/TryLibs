@@ -2,21 +2,24 @@ package com.trynocs.tryLibs.utils.database;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.trynocs.tryLibs.TryLibs;
-import org.bukkit.configuration.file.FileConfiguration;
+import com.trynocs.tryLibs.api.TryLibsAPI; // Changed
+import org.bukkit.configuration.file.FileConfiguration; // Keep for now, but ideally config access is through API
 
 import java.io.File;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.logging.Level; // Changed
 import java.util.logging.Logger;
 
 public class DatabaseHandler {
     private Connection connection;
-    private final Logger logger = Logger.getLogger("DatabaseHandler");
+    private final Logger logger; // Changed: Will be passed by TryLibs
+    private final TryLibsAPI api; // Changed: To access config and other API features if needed
+
     private String dbType;
-    private String sqlitePath;
+    private String sqlitePath; // Default path should be TryLibs specific
     private String mysqlHost;
     private int mysqlPort;
     private String mysqlDatabase;
@@ -27,74 +30,73 @@ public class DatabaseHandler {
     private boolean configLoaded = false;
     private int initAttempts = 0;
     private final int MAX_INIT_ATTEMPTS = 3;
-    private boolean classloaderWarningShown = false;
+    // private boolean classloaderWarningShown = false; // No longer needed here with direct API/Logger passing
 
     /**
-     * Erstellt einen neuen DatabaseHandler.
-     * Es werden KEINE Tabellen automatisch erstellt!
-     * Die Konfiguration wird verzögert geladen, wenn zuerst darauf zugegriffen wird.
+     * Creates a new DatabaseHandler.
+     * Configuration is loaded immediately using the provided TryLibsAPI.
+     * Tables are NOT automatically created.
+     *
+     * @param api The TryLibsAPI instance, used to access configuration and logger.
      */
-    public DatabaseHandler() {
-        // Configuration loading is deferred until first use
+    public DatabaseHandler(TryLibsAPI api, Logger pluginLogger) {
+        this.api = api;
+        this.logger = pluginLogger; // Use the logger from the main TryLibs plugin instance
+        loadConfig(); // Load configuration immediately on construction
     }
 
     private synchronized void loadConfig() {
         if (configLoaded) return;
-        
-        initAttempts++;
+
+        if (this.api == null) {
+            // This should ideally not happen if DatabaseHandler is constructed correctly by TryLibs
+            logger.log(Level.SEVERE, "TryLibsAPI instance is null in DatabaseHandler. Cannot load database configuration.");
+            throw new IllegalStateException("TryLibsAPI not provided to DatabaseHandler.");
+        }
+
+        // No need to check TryLibs.isInitialized() or TryLibs.getPlugin() anymore.
+        // If DatabaseHandler is being created, TryLibs's onEnable should be far enough along
+        // for ConfigManager to be ready.
+
         try {
-            // Check for classloader conflicts
-            if (!classloaderWarningShown && TryLibs.isEmbeddedMode()) {
-                logger.warning("DatabaseHandler detected TryLibs in embedded mode. This may cause issues.");
-                classloaderWarningShown = true;
-            }
-            
-            // Check if TryLibs is properly initialized
-            if (!TryLibs.isInitialized()) {
-                if (initAttempts >= MAX_INIT_ATTEMPTS) {
-                    logger.severe("Failed to load database configuration after " + MAX_INIT_ATTEMPTS + 
-                                 " attempts. TryLibs initialization state: " + TryLibs.getInitializationState());
-                    throw new IllegalStateException("TryLibs is not properly initialized. Current state: " + 
-                                                   TryLibs.getInitializationState());
-                } else {
-                    logger.warning("TryLibs not fully initialized yet. Will retry. Current state: " + 
-                                  TryLibs.getInitializationState());
-                    return;
+            FileConfiguration config = api.getConfigManager().getConfig(); // Use API to get config
+            this.dbType = config.getString("database.type", "sqlite").toLowerCase();
+            logger.info("Using database type: " + dbType);
+
+            // Default SQLite path changed to be TryLibs specific
+            this.sqlitePath = config.getString("database.sqlite.path", "plugins/TryLibs/database.db");
+            File dbFile = new File(this.sqlitePath);
+            File dataFolder = dbFile.getParentFile();
+            if (!dataFolder.exists()) {
+                if (!dataFolder.mkdirs()) {
+                    logger.warning("Could not create data folder for SQLite database: " + dataFolder.getAbsolutePath());
                 }
             }
 
-            // Ensure TryLibs is properly initialized
-            TryLibs plugin = TryLibs.getPlugin();
-            if (plugin == null) {
-                logger.severe("TryLibs plugin instance is null! Cannot load database configuration.");
-                return;
-            }
-
-            FileConfiguration config = plugin.getConfigManager().getConfig();
-            this.dbType = config.getString("database.type", "sqlite").toLowerCase();
-            logger.info("Verwende Datenbanktyp: " + dbType);
-            this.sqlitePath = config.getString("database.sqlite.path", "plugins/BlockEngine/blockengine.db");
-            File dataFolder = new File(sqlitePath.substring(0, sqlitePath.lastIndexOf("/")));
-            if (!dataFolder.exists()) {
-                dataFolder.mkdirs();
-            }
             this.mysqlHost = config.getString("database.mysql.host", "localhost");
             this.mysqlPort = config.getInt("database.mysql.port", 3306);
-            this.mysqlDatabase = config.getString("database.mysql.database", "blockengine");
+            this.mysqlDatabase = config.getString("database.mysql.database", "trylibs"); // Default DB name changed
             this.mysqlUsername = config.getString("database.mysql.username", "root");
             this.mysqlPassword = config.getString("database.mysql.password", "password");
+
             configLoaded = true;
-            initAttempts = 0;
-            logger.info("Database configuration successfully loaded");
-        } catch (IllegalStateException e) {
-            logger.severe("Failed to load database configuration: " + e.getMessage());
-            throw e;
+            logger.info("Database configuration successfully loaded for TryLibs.");
+        } catch (Exception e) { // Catch broader exceptions during config access
+            logger.log(Level.SEVERE, "Failed to load database configuration: " + e.getMessage(), e);
+            // Do not throw, allow server to continue loading, but database functionality will be impaired.
+            // Or, re-throw if database is critical: throw new IllegalStateException("Failed to load database configuration", e);
         }
     }
 
     private synchronized void ensureConnection() {
+        // Config should be loaded by constructor. If not, something is wrong.
         if (!configLoaded) {
+            logger.severe("Database configuration not loaded. Cannot establish connection.");
+            // Attempt to load config again, though this indicates a problem during construction.
             loadConfig();
+            if (!configLoaded) { // If still not loaded, bail.
+                 throw new IllegalStateException("Database configuration failed to load. Cannot ensure connection.");
+            }
         }
 
         try {
