@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 # TryLibs
 
 TryLibs is a utility library for Bukkit/Spigot/Paper Minecraft server plugins, providing common functionalities to streamline plugin development.
